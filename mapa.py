@@ -10,6 +10,17 @@ import pytz
 ts = load.timescale()
 planetas = load ('de421.bsp') # Este arquivo tem as posições dos planetas da NASA
 
+def descobrir_signo(graus):
+    signos = [
+        "Áries", "Touro", "Gêmeos", "Câncer", "Leão", "Virgem", 
+        "Libra", "Escorpião", "Sagitário", "Capricórnio", "Aquário", "Peixes"
+        
+    ]
+    #O sinal % 360 garante que o número esteja sempre no círculo
+    #Dividir por 30 dá o índice do signo (0 a 11)
+    indice = int((graus %360) / 30)
+    return signos[indice]
+    
 def buscar_dados_cidade(nome_cidade):
     geolocator = Nominatim(user_agent="bah60x_mapa")
     try:
@@ -46,27 +57,51 @@ def calcular_astros(data_nasc, hora_nasc, fuso_str, lat, lon):
     #3. Definindo o local na Terra (Onde você estava)
     onde_estou = planetas['earth'] + Topos(latitude_degrees=lat, longitude_degrees=lon)
     
-    #4. Calculando o Sol (como exemplo)
-    astros_nomes = {'sun': 'Sol', 'moon': 'Lua', 'mars': 'Marte', 'venus': 'Vênus'}
+    #4. Lista completa de astros
+    astros_nomes = {
+        'sun': 'Sol',
+        'moon': 'Lua',
+        'mercury': 'Mercúrio',
+        'venus': 'Vênus',
+        'mars': 'Marte',
+        'jupiter barycenter': 'júpiter',
+        'saturn barycenter': 'Saturno',
+        'uranus barycenter': 'Urano',
+        'neptune barycenter': 'Netuno',
+        'pluto barycenter': 'Plutão'
+        }
     resultados = []
-    
     for chave, nome in astros_nomes.items():
+        #1. Localiza o astro no céu
         posicao = onde_estou.at(tempo).observe(planetas[chave]).apparent()
-        alt, az, distancia = posicao.altaz()
-        resultados.append({"Astro": nome, "Altitude": alt.degrees})
-     
-    return resultados
-    
-    
+            
+        #2. Pega a Longitude (Signo)
+        lat_ecl, lon_ecl, dist = posicao.ecliptic_latlon()
+        
+        #3. Pega a altitude (para saber se está acima do horizonte)
+        alt, az, d = posicao.altaz()
+        
+        #4. Adiciona na nossa lista com o signo!
+        signo_nome = descobrir_signo(lon_ecl.degrees)
+        
+        resultados.append({
+            "Astro": nome,
+            "Signo": signo_nome,
+            "Graus": round(lon_ecl.degrees %30, 2), # Graus dentro do signo (0 a 30)
+            "Altitude": round(alt.degrees, 2)
+        })
+         
+    return resultados 
+        
 # 1. Criando o Título Principal
-st.title ("Ferramentas holísticas")
+st.title("Ferramentas holísticas")
 
 # 2. Criando as duas opções no topo (botões de navegação)
 aba_astral, aba_numerologia = st.tabs (["🔭 Mapa Astral", "🔢 Mapa Numerológico"])
 
 # 3. O que aparece na aba Mapa Astral
 with aba_astral:
-    st.header ("Seu Mapa Astral")
+    st.header("Seu Mapa Astral")
     st.write("Descubra a posição dos astros no seu nascimento.")
     
     # Aqui colocamos os campos do mapa astral
