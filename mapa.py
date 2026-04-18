@@ -98,13 +98,58 @@ def calcular_astros(data_nasc, hora_nasc, fuso_str, lat, lon):
         elemento = descobrir_elemento(signo_nome)
         
         resultados.append({
-            "Ponto": nome,
+            "Ponto": nome,        # Mude de "Astro" para "Ponto"
             "Signo": signo_nome,
             "Elemento": elemento,
-            "Graus": round(lon_ecl.degrees %30, 2), # Graus dentro do signo (0 a 30)
+            "Graus": round(lon_ecl.degrees % 30, 2),
             "Altitude": round(alt.degrees, 2)
         })
-         
+        # 1. Cálculo do Tempo Sideral Local (LST)
+    # tempo.gmst é o tempo sideral em Greenwich. Somamos a longitude/15 para o local.
+    lst = (tempo.gmst + lon / 15.0) % 24.0
+    ramc = lst * 15.0  # Converte horas para graus
+    
+    import math
+    # Transforma coordenadas para Radianos para o Python calcular
+    ra_rad = math.radians(ramc)
+    lat_rad = math.radians(lat)
+    eps_rad = math.radians(23.43929) # Obliqüidade da eclíptica precisa
+
+    # 2. Cálculo do Meio do Céu (MC)
+    mc_rad = math.atan2(math.tan(ra_rad), math.cos(eps_rad))
+    mc_deg = math.degrees(mc_rad) % 360
+    
+    # Ajuste de quadrante para o MC
+    if (ramc > 90 and ramc < 270):
+        mc_deg = (mc_deg + 180) % 360
+    
+    signo_mc = descobrir_signo(mc_deg)
+
+    # 3. Cálculo do Ascendente (AC)
+    # Fórmula: atan2(cos(RAMC), -sin(RAMC)*cos(eps) - tan(lat)*sin(eps))
+    asc_rad = math.atan2(math.cos(ra_rad), 
+                         -math.sin(ra_rad) * math.cos(eps_rad) - math.tan(lat_rad) * math.sin(eps_rad))
+    asc_deg = math.degrees(asc_rad) % 360
+    
+    signo_asc = descobrir_signo(asc_deg)
+
+    # Ascendente
+    resultados.insert(0, {
+        "Ponto": "Ascendente", 
+        "Signo": signo_asc, 
+        "Elemento": descobrir_elemento(signo_asc), 
+        "Graus": round(asc_deg % 30, 2), 
+        "Altitude": 0.0
+    })
+    
+    # Meio do Céu
+    resultados.insert(1, {
+        "Ponto": "Meio do Céu", 
+        "Signo": signo_mc, 
+        "Elemento": descobrir_elemento(signo_mc), 
+        "Graus": round(mc_deg % 30, 2), 
+        "Altitude": 90.0
+    })
     return resultados 
         
 # 1. Criando o Título Principal
