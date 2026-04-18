@@ -21,6 +21,18 @@ def descobrir_signo(graus):
     indice = int((graus %360) / 30)
     return signos[indice]
     
+def descobrir_elemento(signo):
+    elementos = {
+        "Fogo": ["Áries", "Leão", "Sagitário"],
+        "Terra": ["Touro", "Virgem", "Capricórnio"],
+        "Ar": ["Gêmeos", "Libra", "Aquário"],
+        "Água": ["Câncer", "Escorpião", "Peixes"]
+    }
+    for elemento, lista in elementos.items():
+        if signo in lista:
+            return elemento
+    return "N/A"
+    
 def buscar_dados_cidade(nome_cidade):
     geolocator = Nominatim(user_agent="bah60x_mapa")
     try:
@@ -81,12 +93,14 @@ def calcular_astros(data_nasc, hora_nasc, fuso_str, lat, lon):
         #3. Pega a altitude (para saber se está acima do horizonte)
         alt, az, d = posicao.altaz()
         
-        #4. Adiciona na nossa lista com o signo!
+        #4. Adiciona na nossa lista com o signo e elemento!
         signo_nome = descobrir_signo(lon_ecl.degrees)
+        elemento = descobrir_elemento(signo_nome)
         
         resultados.append({
-            "Astro": nome,
+            "Ponto": nome,
             "Signo": signo_nome,
+            "Elemento": elemento,
             "Graus": round(lon_ecl.degrees %30, 2), # Graus dentro do signo (0 a 30)
             "Altitude": round(alt.degrees, 2)
         })
@@ -114,12 +128,34 @@ with aba_astral:
     max_value=datetime(2100, 12, 31), #Define um limite no futuro
     key="data_astral"
 )
-    hora_nasc = st.time_input("Hora exata", key="hora_astral")
+    st.write("Hora de nascimento:")
+    col_hora, col_min = st.columns(2)
+    with col_hora:
+        h_val = st.number_input("Hora", min_value=0, max_value=23, value=12, step=1)
+    with col_min:
+        m_val = st.number_input("Minuto", min_value=0, max_value=59, value=0, step=1)
+    
+    #Criamos a hora final direto desses números
+    from datetime import time
+    hora_final = time(h_val, m_val)
 
     if st.button("Gerar meu Mapa Astral"):
-        # O strip () remove espaços vazios que a gente digita sem querer
         if cidade.strip():
-            #Esse spinner é o loading visual
+            with st.spinner ('Consultando os astros e o GPS...'):
+                lat, lon, fuso = buscar_dados_cidade(cidade)
+                if lat:
+                    st.success(f"Cidade Encontrada!")
+                    mapa = calcular_astros(data_nasc, hora_final, fuso, lat, lon)
+                    
+                    st.subheader("Posições encontradas:")
+                    df = pd.DataFrame(mapa)
+                    st.table(df)
+                else:
+                    st.error("Não encontrei a cidade.")
+        else:
+            st.warning("Por favor, digite o nome de uma cidade.")
+
+        #Esse spinner é o loading visual
             with st.spinner('Consultando os astros e o GPS...'):
                 lat, lon, fuso = buscar_dados_cidade(cidade)
                 if lat:
@@ -136,10 +172,7 @@ with aba_astral:
                     #Adicione isso para o usuario nao ficar no vácuo
                     st.error("Não consegui encontrar sua cidade. Tente: Cidade,Estado")
                     
-                # Próximo passo: Calcular os planetas aqui!
-        else:
-            st.warning("por favor, digite o nome de uma cidade.")
-    
+           
 # 4. O que aparece na Numerologia
 with aba_numerologia:
     st.header("Sua Numerologia")
